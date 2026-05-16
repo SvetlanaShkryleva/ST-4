@@ -1,108 +1,112 @@
 using Stateless;
 
-namespace BugPro
+namespace BugPro;
+
+public class Bug
 {
     public enum State
     {
-        NewDefect,
-        Analysis,
-        Resolution,
-        Returned,
+        New,
+        Assigned,
+        InProgress,
+        Fixed,
+        Verified,
         Closed,
         Reopened,
-        NeedMoreInfo,
-        Review
+        Rejected,
+        Deferred
     }
 
     public enum Trigger
     {
-        Analyze,
-        Reject,
-        AskInfo,
-        ProvideInfo,
-        StartFix,
-        VerifySuccess,
-        VerifyFailure,
-        ReportCannotReproduce,
-        ReturnForInfo,
-        ContinueFix,
-        ConfirmNotRepro,
-        ConfirmBugExists,
+        Assign,
+        StartProgress,
+        Fix,
+        Verify,
+        Close,
         Reopen,
-        AnalyzeAgain
+        Reject,
+        Defer,
+        Reactivate
     }
 
-    public class Bug
+    private readonly StateMachine<State, Trigger> _machine;
+    private readonly StateMachine<State, Trigger>.TriggerWithParameters<string> _assignTrigger;
+
+    public Bug(State initialState = State.New)
     {
-        private readonly StateMachine<State, Trigger> _machine;
+        _machine = new StateMachine<State, Trigger>(initialState);
+        _assignTrigger = _machine.SetTriggerParameters<string>(Trigger.Assign);
 
-        public Bug()
-        {
-            _machine = new StateMachine<State, Trigger>(State.NewDefect);
+        _machine.Configure(State.New)
+            .Permit(Trigger.Assign, State.Assigned)
+            .Permit(Trigger.Reject, State.Rejected)
+            .Permit(Trigger.Defer, State.Deferred);
 
-            _machine.Configure(State.NewDefect)
-                .Permit(Trigger.Analyze, State.Analysis);
+        _machine.Configure(State.Assigned)
+            .OnEntryFrom(_assignTrigger, developer => Console.WriteLine($"  Assigned developer: {developer}"))
+            .Permit(Trigger.StartProgress, State.InProgress)
+            .Permit(Trigger.Reject, State.Rejected)
+            .Permit(Trigger.Defer, State.Deferred);
 
-            _machine.Configure(State.Analysis)
-                .Permit(Trigger.Reject, State.Returned)
-                .Permit(Trigger.AskInfo, State.NeedMoreInfo)
-                .Permit(Trigger.StartFix, State.Resolution);
+        _machine.Configure(State.InProgress)
+            .Permit(Trigger.Fix, State.Fixed)
+            .Permit(Trigger.Defer, State.Deferred);
 
-            _machine.Configure(State.NeedMoreInfo)
-                .Permit(Trigger.ProvideInfo, State.Analysis)
-                .Permit(Trigger.ContinueFix, State.Resolution);
+        _machine.Configure(State.Fixed)
+            .Permit(Trigger.Verify, State.Verified)
+            .Permit(Trigger.Reopen, State.Reopened);
 
-            _machine.Configure(State.Resolution)
-                .Permit(Trigger.VerifySuccess, State.Closed)
-                .Permit(Trigger.VerifyFailure, State.Returned)
-                .Permit(Trigger.ReportCannotReproduce, State.Review)
-                .Permit(Trigger.ReturnForInfo, State.NeedMoreInfo);
+        _machine.Configure(State.Verified)
+            .Permit(Trigger.Close, State.Closed)
+            .Permit(Trigger.Reopen, State.Reopened);
 
-            _machine.Configure(State.Review)
-                .Permit(Trigger.ConfirmNotRepro, State.Closed)
-                .Permit(Trigger.ConfirmBugExists, State.Returned);
+        _machine.Configure(State.Closed)
+            .Permit(Trigger.Reopen, State.Reopened);
 
-            _machine.Configure(State.Closed)
-                .Permit(Trigger.Reopen, State.Reopened);
+        _machine.Configure(State.Reopened)
+            .Permit(Trigger.Assign, State.Assigned)
+            .Permit(Trigger.Reject, State.Rejected);
 
-            _machine.Configure(State.Reopened)
-                .Permit(Trigger.AnalyzeAgain, State.Analysis);
-        }
+        _machine.Configure(State.Rejected)
+            .Permit(Trigger.Reactivate, State.New);
 
-        public void Analyze() => _machine.Fire(Trigger.Analyze);
-        public void Reject() => _machine.Fire(Trigger.Reject);
-        public void AskInfo() => _machine.Fire(Trigger.AskInfo);
-        public void ProvideInfo() => _machine.Fire(Trigger.ProvideInfo);
-        public void StartFix() => _machine.Fire(Trigger.StartFix);
-        public void VerifySuccess() => _machine.Fire(Trigger.VerifySuccess);
-        public void VerifyFailure() => _machine.Fire(Trigger.VerifyFailure);
-        public void ReportCannotReproduce() => _machine.Fire(Trigger.ReportCannotReproduce);
-        public void ConfirmNotRepro() => _machine.Fire(Trigger.ConfirmNotRepro);
-        public void ConfirmBugExists() => _machine.Fire(Trigger.ConfirmBugExists);
-        public void Reopen() => _machine.Fire(Trigger.Reopen);
-        public void AnalyzeAgain() => _machine.Fire(Trigger.AnalyzeAgain);
-        public void ReturnForInfo() => _machine.Fire(Trigger.ReturnForInfo);
-        public void ContinueFix() => _machine.Fire(Trigger.ContinueFix);
-
-        public State CurrentState => _machine.State;
+        _machine.Configure(State.Deferred)
+            .Permit(Trigger.Reactivate, State.New);
     }
 
-    class Program
+    public State CurrentState => _machine.State;
+
+    public void Assign(string developer) => _machine.Fire(_assignTrigger, developer);
+    public void StartProgress() => _machine.Fire(Trigger.StartProgress);
+    public void Fix() => _machine.Fire(Trigger.Fix);
+    public void Verify() => _machine.Fire(Trigger.Verify);
+    public void Close() => _machine.Fire(Trigger.Close);
+    public void Reopen() => _machine.Fire(Trigger.Reopen);
+    public void Reject() => _machine.Fire(Trigger.Reject);
+    public void Defer() => _machine.Fire(Trigger.Defer);
+    public void Reactivate() => _machine.Fire(Trigger.Reactivate);
+
+    public static void Main()
     {
-        static void Main(string[] args)
-        {
-            Console.WriteLine("Тест прохода по схеме:\n");
-            var bug = new Bug();
-            bug.Analyze();
-            bug.StartFix();
-            Console.WriteLine($"Current: {bug.CurrentState} (Resolution)");
-            bug.ReturnForInfo();
-            Console.WriteLine($"After Request: {bug.CurrentState} (NeedMoreInfo)");
-            bug.ContinueFix();
-            Console.WriteLine($"After Info: {bug.CurrentState} (Resolution)");
-            bug.VerifySuccess();
-            Console.WriteLine($"Final: {bug.CurrentState} (Closed)");
-            Console.WriteLine("\n Дефект исправлен");
-        }
+        Console.WriteLine("Bug workflow demo");
+
+        var bug = new Bug();
+        Console.WriteLine($"Initial state: {bug.CurrentState}");
+
+        bug.Assign("Yushkova Polina");
+        Console.WriteLine($"After assign: {bug.CurrentState}");
+
+        bug.StartProgress();
+        Console.WriteLine($"After start progress: {bug.CurrentState}");
+
+        bug.Fix();
+        Console.WriteLine($"After fix: {bug.CurrentState}");
+
+        bug.Verify();
+        Console.WriteLine($"After verify: {bug.CurrentState}");
+
+        bug.Close();
+        Console.WriteLine($"After close: {bug.CurrentState}");
     }
 }
