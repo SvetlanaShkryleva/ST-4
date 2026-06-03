@@ -6,28 +6,14 @@ public class Bug
 {
     public enum BugStatus
     {
-        New,
-        Assigned,
-        InProgress,
-        Fixed,
-        Verified,
-        Closed,
-        Reopened,
-        Rejected,
-        Deferred
+        New, Assigned, InProgress, Fixed, Verified,
+        Closed, Reopened, Rejected, Deferred
     }
 
     public enum BugAction
     {
-        Assign,
-        StartWork,
-        Fix,
-        Confirm,
-        Close,
-        Reopen,
-        Reject,
-        Defer,
-        Renew
+        Assign, StartWork, Fix, Confirm, Close,
+        Reopen, Reject, Defer, Renew
     }
 
     private readonly StateMachine<BugStatus, BugAction> _fsm;
@@ -86,4 +72,24 @@ public class Bug
     public void RejectBug() => _fsm.Fire(BugAction.Reject);
     public void DeferBug() => _fsm.Fire(BugAction.Defer);
     public void ActivateAgain() => _fsm.Fire(BugAction.Renew);
+}
+
+public static class Program
+{
+    public static void Main()
+    {
+        Console.WriteLine("Bug workflow demo");
+        var bug = new Bug();
+        Console.WriteLine($"Initial state: {bug.CurrentStatus}");
+        bug.AssignTo("Yushkova Polina");
+        Console.WriteLine($"After assign: {bug.CurrentStatus}");
+        bug.StartWorking();
+        Console.WriteLine($"After start progress: {bug.CurrentStatus}");
+        bug.MarkAsFixed();
+        Console.WriteLine($"After fix: {bug.CurrentStatus}");
+        bug.ConfirmFix();
+        Console.WriteLine($"After verify: {bug.CurrentStatus}");
+        bug.CloseBug();
+        Console.WriteLine($"After close: {bug.CurrentStatus}");
+    }
 }
