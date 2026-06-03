@@ -4,7 +4,7 @@ namespace BugPro;
 
 public class Bug
 {
-    public enum State
+    public enum BugStatus
     {
         New,
         Assigned,
@@ -17,96 +17,73 @@ public class Bug
         Deferred
     }
 
-    public enum Trigger
+    public enum BugAction
     {
         Assign,
-        StartProgress,
+        StartWork,
         Fix,
-        Verify,
+        Confirm,
         Close,
         Reopen,
         Reject,
         Defer,
-        Reactivate
+        Renew
     }
 
-    private readonly StateMachine<State, Trigger> _machine;
-    private readonly StateMachine<State, Trigger>.TriggerWithParameters<string> _assignTrigger;
+    private readonly StateMachine<BugStatus, BugAction> _fsm;
+    private readonly StateMachine<BugStatus, BugAction>.TriggerWithParameters<string> _assignTrigger;
 
-    public Bug(State initialState = State.New)
+    public Bug(BugStatus initialStatus = BugStatus.New)
     {
-        _machine = new StateMachine<State, Trigger>(initialState);
-        _assignTrigger = _machine.SetTriggerParameters<string>(Trigger.Assign);
+        _fsm = new StateMachine<BugStatus, BugAction>(initialStatus);
+        _assignTrigger = _fsm.SetTriggerParameters<string>(BugAction.Assign);
 
-        _machine.Configure(State.New)
-            .Permit(Trigger.Assign, State.Assigned)
-            .Permit(Trigger.Reject, State.Rejected)
-            .Permit(Trigger.Defer, State.Deferred);
+        _fsm.Configure(BugStatus.New)
+            .Permit(BugAction.Assign, BugStatus.Assigned)
+            .Permit(BugAction.Reject, BugStatus.Rejected)
+            .Permit(BugAction.Defer, BugStatus.Deferred);
 
-        _machine.Configure(State.Assigned)
-            .OnEntryFrom(_assignTrigger, developer => Console.WriteLine($"  Assigned developer: {developer}"))
-            .Permit(Trigger.StartProgress, State.InProgress)
-            .Permit(Trigger.Reject, State.Rejected)
-            .Permit(Trigger.Defer, State.Deferred);
+        _fsm.Configure(BugStatus.Assigned)
+            .OnEntryFrom(_assignTrigger, assignee => Console.WriteLine($"  Assigned to: {assignee}"))
+            .Permit(BugAction.StartWork, BugStatus.InProgress)
+            .Permit(BugAction.Reject, BugStatus.Rejected)
+            .Permit(BugAction.Defer, BugStatus.Deferred);
 
-        _machine.Configure(State.InProgress)
-            .Permit(Trigger.Fix, State.Fixed)
-            .Permit(Trigger.Defer, State.Deferred);
+        _fsm.Configure(BugStatus.InProgress)
+            .Permit(BugAction.Fix, BugStatus.Fixed)
+            .Permit(BugAction.Defer, BugStatus.Deferred);
 
-        _machine.Configure(State.Fixed)
-            .Permit(Trigger.Verify, State.Verified)
-            .Permit(Trigger.Reopen, State.Reopened);
+        _fsm.Configure(BugStatus.Fixed)
+            .Permit(BugAction.Confirm, BugStatus.Verified)
+            .Permit(BugAction.Reopen, BugStatus.Reopened);
 
-        _machine.Configure(State.Verified)
-            .Permit(Trigger.Close, State.Closed)
-            .Permit(Trigger.Reopen, State.Reopened);
+        _fsm.Configure(BugStatus.Verified)
+            .Permit(BugAction.Close, BugStatus.Closed)
+            .Permit(BugAction.Reopen, BugStatus.Reopened);
 
-        _machine.Configure(State.Closed)
-            .Permit(Trigger.Reopen, State.Reopened);
+        _fsm.Configure(BugStatus.Closed)
+            .Permit(BugAction.Reopen, BugStatus.Reopened);
 
-        _machine.Configure(State.Reopened)
-            .Permit(Trigger.Assign, State.Assigned)
-            .Permit(Trigger.Reject, State.Rejected);
+        _fsm.Configure(BugStatus.Reopened)
+            .Permit(BugAction.Assign, BugStatus.Assigned)
+            .Permit(BugAction.Reject, BugStatus.Rejected);
 
-        _machine.Configure(State.Rejected)
-            .Permit(Trigger.Reactivate, State.New);
+        _fsm.Configure(BugStatus.Rejected)
+            .Permit(BugAction.Renew, BugStatus.New);
 
-        _machine.Configure(State.Deferred)
-            .Permit(Trigger.Reactivate, State.New);
+        _fsm.Configure(BugStatus.Deferred)
+            .Permit(BugAction.Renew, BugStatus.New);
     }
 
-    public State CurrentState => _machine.State;
+    public BugStatus CurrentStatus => _fsm.State;
 
-    public void Assign(string developer) => _machine.Fire(_assignTrigger, developer);
-    public void StartProgress() => _machine.Fire(Trigger.StartProgress);
-    public void Fix() => _machine.Fire(Trigger.Fix);
-    public void Verify() => _machine.Fire(Trigger.Verify);
-    public void Close() => _machine.Fire(Trigger.Close);
-    public void Reopen() => _machine.Fire(Trigger.Reopen);
-    public void Reject() => _machine.Fire(Trigger.Reject);
-    public void Defer() => _machine.Fire(Trigger.Defer);
-    public void Reactivate() => _machine.Fire(Trigger.Reactivate);
-
-    public static void Main()
-    {
-        Console.WriteLine("Bug workflow demo");
-
-        var bug = new Bug();
-        Console.WriteLine($"Initial state: {bug.CurrentState}");
-
-        bug.Assign("Yushkova Polina");
-        Console.WriteLine($"After assign: {bug.CurrentState}");
-
-        bug.StartProgress();
-        Console.WriteLine($"After start progress: {bug.CurrentState}");
-
-        bug.Fix();
-        Console.WriteLine($"After fix: {bug.CurrentState}");
-
-        bug.Verify();
-        Console.WriteLine($"After verify: {bug.CurrentState}");
-
-        bug.Close();
-        Console.WriteLine($"After close: {bug.CurrentState}");
-    }
+    public void AssignTo(string assignee) => _fsm.Fire(_assignTrigger, assignee);
+    public void StartWorking() => _fsm.Fire(BugAction.StartWork);
+    public void MarkAsFixed() => _fsm.Fire(BugAction.Fix);
+    public void ConfirmFix() => _fsm.Fire(BugAction.Confirm);
+    public void CloseBug() => _fsm.Fire(BugAction.Close);
+    public void ReopenBug() => _fsm.Fire(BugAction.Reopen);
+    public void RejectBug() => _fsm.Fire(BugAction.Reject);
+    public void DeferBug() => _fsm.Fire(BugAction.Defer);
+    public void ActivateAgain() => _fsm.Fire(BugAction.Renew);
 }
