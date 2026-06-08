@@ -1,250 +1,250 @@
-using BugPro;
+using BugTracking;
 using Microsoft.VisualStudio.TestTools.UnitTesting;
 using System;
 
-namespace BugTests;
+namespace TicketTests;
 
 [TestClass]
-public class BugWorkflowTests
+public class TicketWorkflowTests
 {
-    private Bug _bug = null!;
+    private Ticket _ticket = null!;
 
     [TestInitialize]
-    public void PrepareBug()
+    public void PrepareTicket()
     {
-        _bug = new Bug(Bug.BugStatus.New);
+        _ticket = new Ticket(Ticket.TicketStatus.Open);
     }
 
     [TestMethod]
-    public void NewlyCreatedBug_ShouldBeInNewStatus()
+    public void NewTicket_ShouldStartInOpenStatus()
     {
-        Assert.AreEqual(Bug.BugStatus.New, _bug.CurrentStatus);
+        Assert.AreEqual(Ticket.TicketStatus.Open, _ticket.CurrentStatus);
     }
 
     [TestMethod]
-    public void Assign_TransitionsFromNewToAssigned()
+    public void Allocate_FromOpen_MovesToAllocated()
     {
-        _bug.AssignTo("Tester99");
-        Assert.AreEqual(Bug.BugStatus.Assigned, _bug.CurrentStatus);
+        _ticket.AllocateTo("TesterABC");
+        Assert.AreEqual(Ticket.TicketStatus.Allocated, _ticket.CurrentStatus);
     }
 
     [TestMethod]
-    public void Reject_FromNew_MovesToRejected()
+    public void Decline_FromOpen_GoesToDeclined()
     {
-        _bug.RejectBug();
-        Assert.AreEqual(Bug.BugStatus.Rejected, _bug.CurrentStatus);
+        _ticket.DeclineTicket();
+        Assert.AreEqual(Ticket.TicketStatus.Declined, _ticket.CurrentStatus);
     }
 
     [TestMethod]
-    public void Defer_FromNew_GoesToDeferred()
+    public void Postpone_FromOpen_GoesToSuspended()
     {
-        _bug.DeferBug();
-        Assert.AreEqual(Bug.BugStatus.Deferred, _bug.CurrentStatus);
+        _ticket.PostponeTicket();
+        Assert.AreEqual(Ticket.TicketStatus.Suspended, _ticket.CurrentStatus);
     }
 
     [TestMethod]
-    public void StartWorking_FromAssigned_LeadsToInProgress()
+    public void BeginWork_FromAllocated_TransitionsToInWork()
     {
-        _bug.AssignTo("Dev123");
-        _bug.StartWorking();
-        Assert.AreEqual(Bug.BugStatus.InProgress, _bug.CurrentStatus);
+        _ticket.AllocateTo("DeveloperX");
+        _ticket.BeginWork();
+        Assert.AreEqual(Ticket.TicketStatus.InWork, _ticket.CurrentStatus);
     }
 
     [TestMethod]
-    public void Fix_FromInProgress_BecomesFixed()
+    public void Resolve_FromInWork_BecomesResolved()
     {
-        _bug.AssignTo("Dev123");
-        _bug.StartWorking();
-        _bug.MarkAsFixed();
-        Assert.AreEqual(Bug.BugStatus.Fixed, _bug.CurrentStatus);
+        _ticket.AllocateTo("Dev");
+        _ticket.BeginWork();
+        _ticket.MarkResolved();
+        Assert.AreEqual(Ticket.TicketStatus.Resolved, _ticket.CurrentStatus);
     }
 
     [TestMethod]
-    public void ConfirmFix_FromFixed_ChangesToVerified()
+    public void Accept_FromResolved_ChangesToReviewed()
     {
-        _bug.AssignTo("Dev123");
-        _bug.StartWorking();
-        _bug.MarkAsFixed();
-        _bug.ConfirmFix();
-        Assert.AreEqual(Bug.BugStatus.Verified, _bug.CurrentStatus);
+        _ticket.AllocateTo("Dev");
+        _ticket.BeginWork();
+        _ticket.MarkResolved();
+        _ticket.AcceptResolution();
+        Assert.AreEqual(Ticket.TicketStatus.Reviewed, _ticket.CurrentStatus);
     }
 
     [TestMethod]
-    public void Close_FromVerified_EndsInClosed()
+    public void Complete_FromReviewed_EndsInDone()
     {
-        _bug.AssignTo("Dev123");
-        _bug.StartWorking();
-        _bug.MarkAsFixed();
-        _bug.ConfirmFix();
-        _bug.CloseBug();
-        Assert.AreEqual(Bug.BugStatus.Closed, _bug.CurrentStatus);
+        _ticket.AllocateTo("Dev");
+        _ticket.BeginWork();
+        _ticket.MarkResolved();
+        _ticket.AcceptResolution();
+        _ticket.CompleteTicket();
+        Assert.AreEqual(Ticket.TicketStatus.Done, _ticket.CurrentStatus);
     }
 
     [TestMethod]
-    public void Reopen_FromClosed_ReturnsToReopened()
+    public void Reactivate_FromDone_ReturnsToReopened()
     {
-        _bug.AssignTo("Dev123");
-        _bug.StartWorking();
-        _bug.MarkAsFixed();
-        _bug.ConfirmFix();
-        _bug.CloseBug();
-        _bug.ReopenBug();
-        Assert.AreEqual(Bug.BugStatus.Reopened, _bug.CurrentStatus);
+        _ticket.AllocateTo("Dev");
+        _ticket.BeginWork();
+        _ticket.MarkResolved();
+        _ticket.AcceptResolution();
+        _ticket.CompleteTicket();
+        _ticket.ReactivateTicket();
+        Assert.AreEqual(Ticket.TicketStatus.Reopened, _ticket.CurrentStatus);
     }
 
     [TestMethod]
-    public void Reject_FromAssigned_TransitionsToRejected()
+    public void Decline_FromAllocated_TransitionsToDeclined()
     {
-        _bug.AssignTo("Dev123");
-        _bug.RejectBug();
-        Assert.AreEqual(Bug.BugStatus.Rejected, _bug.CurrentStatus);
+        _ticket.AllocateTo("Tester");
+        _ticket.DeclineTicket();
+        Assert.AreEqual(Ticket.TicketStatus.Declined, _ticket.CurrentStatus);
     }
 
     [TestMethod]
-    public void Reactivate_FromRejected_GoesBackToNew()
+    public void Restore_FromDeclined_GoesBackToOpen()
     {
-        _bug.RejectBug();
-        _bug.ActivateAgain();
-        Assert.AreEqual(Bug.BugStatus.New, _bug.CurrentStatus);
+        _ticket.DeclineTicket();
+        _ticket.RestoreTicket();
+        Assert.AreEqual(Ticket.TicketStatus.Open, _ticket.CurrentStatus);
     }
 
     [TestMethod]
-    public void Reactivate_FromDeferred_ResetsToNew()
+    public void Restore_FromSuspended_ResetsToOpen()
     {
-        _bug.DeferBug();
-        _bug.ActivateAgain();
-        Assert.AreEqual(Bug.BugStatus.New, _bug.CurrentStatus);
+        _ticket.PostponeTicket();
+        _ticket.RestoreTicket();
+        Assert.AreEqual(Ticket.TicketStatus.Open, _ticket.CurrentStatus);
     }
 
     [TestMethod]
-    public void Reopen_FromFixed_GoesToReopened()
+    public void Reactivate_FromResolved_GoesToReopened()
     {
-        _bug.AssignTo("Dev123");
-        _bug.StartWorking();
-        _bug.MarkAsFixed();
-        _bug.ReopenBug();
-        Assert.AreEqual(Bug.BugStatus.Reopened, _bug.CurrentStatus);
+        _ticket.AllocateTo("Dev");
+        _ticket.BeginWork();
+        _ticket.MarkResolved();
+        _ticket.ReactivateTicket();
+        Assert.AreEqual(Ticket.TicketStatus.Reopened, _ticket.CurrentStatus);
     }
 
     [TestMethod]
-    public void Reopen_FromVerified_GoesToReopened()
+    public void Reactivate_FromReviewed_GoesToReopened()
     {
-        _bug.AssignTo("Dev123");
-        _bug.StartWorking();
-        _bug.MarkAsFixed();
-        _bug.ConfirmFix();
-        _bug.ReopenBug();
-        Assert.AreEqual(Bug.BugStatus.Reopened, _bug.CurrentStatus);
+        _ticket.AllocateTo("Dev");
+        _ticket.BeginWork();
+        _ticket.MarkResolved();
+        _ticket.AcceptResolution();
+        _ticket.ReactivateTicket();
+        Assert.AreEqual(Ticket.TicketStatus.Reopened, _ticket.CurrentStatus);
     }
 
     [TestMethod]
-    public void Reject_FromReopened_MovesToRejected()
+    public void Decline_FromReopened_MovesToDeclined()
     {
-        _bug.AssignTo("Dev123");
-        _bug.StartWorking();
-        _bug.MarkAsFixed();
-        _bug.ConfirmFix();
-        _bug.CloseBug();
-        _bug.ReopenBug();
-        _bug.RejectBug();
-        Assert.AreEqual(Bug.BugStatus.Rejected, _bug.CurrentStatus);
+        _ticket.AllocateTo("Dev");
+        _ticket.BeginWork();
+        _ticket.MarkResolved();
+        _ticket.AcceptResolution();
+        _ticket.CompleteTicket();
+        _ticket.ReactivateTicket();
+        _ticket.DeclineTicket();
+        Assert.AreEqual(Ticket.TicketStatus.Declined, _ticket.CurrentStatus);
     }
 
     [TestMethod]
-    public void FullSequence_ShouldFinishInClosed()
+    public void FullSequence_ShouldFinishInDone()
     {
-        _bug.AssignTo("QA");
-        _bug.StartWorking();
-        _bug.MarkAsFixed();
-        _bug.ConfirmFix();
-        _bug.CloseBug();
-        Assert.AreEqual(Bug.BugStatus.Closed, _bug.CurrentStatus);
-    }
-
-    [TestMethod]
-    [ExpectedException(typeof(InvalidOperationException))]
-    public void StartWorking_WhenNew_ThrowsException()
-    {
-        _bug.StartWorking();
+        _ticket.AllocateTo("QA");
+        _ticket.BeginWork();
+        _ticket.MarkResolved();
+        _ticket.AcceptResolution();
+        _ticket.CompleteTicket();
+        Assert.AreEqual(Ticket.TicketStatus.Done, _ticket.CurrentStatus);
     }
 
     [TestMethod]
     [ExpectedException(typeof(InvalidOperationException))]
-    public void Fix_WhenAssigned_NotAllowed()
+    public void BeginWork_WhenOpen_ThrowsException()
     {
-        _bug.AssignTo("Dev");
-        _bug.MarkAsFixed();
+        _ticket.BeginWork();
     }
 
     [TestMethod]
     [ExpectedException(typeof(InvalidOperationException))]
-    public void ConfirmFix_WhenInProgress_Throws()
+    public void Resolve_WhenAllocated_NotAllowed()
     {
-        _bug.AssignTo("Dev");
-        _bug.StartWorking();
-        _bug.ConfirmFix();
+        _ticket.AllocateTo("Dev");
+        _ticket.MarkResolved();
     }
 
     [TestMethod]
     [ExpectedException(typeof(InvalidOperationException))]
-    public void Close_WhenFixed_Throws()
+    public void Accept_WhenInWork_Throws()
     {
-        _bug.AssignTo("Dev");
-        _bug.StartWorking();
-        _bug.MarkAsFixed();
-        _bug.CloseBug();
+        _ticket.AllocateTo("Dev");
+        _ticket.BeginWork();
+        _ticket.AcceptResolution();
     }
 
     [TestMethod]
     [ExpectedException(typeof(InvalidOperationException))]
-    public void Reject_WhenClosed_Throws()
+    public void Complete_WhenResolved_Throws()
     {
-        _bug.AssignTo("Dev");
-        _bug.StartWorking();
-        _bug.MarkAsFixed();
-        _bug.ConfirmFix();
-        _bug.CloseBug();
-        _bug.RejectBug();
+        _ticket.AllocateTo("Dev");
+        _ticket.BeginWork();
+        _ticket.MarkResolved();
+        _ticket.CompleteTicket();
     }
 
     [TestMethod]
     [ExpectedException(typeof(InvalidOperationException))]
-    public void Reopen_WhenNew_Throws()
+    public void Decline_WhenDone_Throws()
     {
-        _bug.ReopenBug();
+        _ticket.AllocateTo("Dev");
+        _ticket.BeginWork();
+        _ticket.MarkResolved();
+        _ticket.AcceptResolution();
+        _ticket.CompleteTicket();
+        _ticket.DeclineTicket();
     }
 
     [TestMethod]
     [ExpectedException(typeof(InvalidOperationException))]
-    public void Close_WhenReopened_Throws()
+    public void Reactivate_WhenOpen_Throws()
     {
-        _bug.AssignTo("Dev");
-        _bug.StartWorking();
-        _bug.MarkAsFixed();
-        _bug.ReopenBug();
-        _bug.CloseBug();
+        _ticket.ReactivateTicket();
+    }
+
+    [TestMethod]
+    [ExpectedException(typeof(InvalidOperationException))]
+    public void Complete_WhenReopened_Throws()
+    {
+        _ticket.AllocateTo("Dev");
+        _ticket.BeginWork();
+        _ticket.MarkResolved();
+        _ticket.ReactivateTicket();
+        _ticket.CompleteTicket();
     }
 
     [DataTestMethod]
-    [DataRow(Bug.BugStatus.Assigned, Bug.BugAction.StartWork, Bug.BugStatus.InProgress)]
-    [DataRow(Bug.BugStatus.Fixed, Bug.BugAction.Confirm, Bug.BugStatus.Verified)]
-    [DataRow(Bug.BugStatus.Verified, Bug.BugAction.Close, Bug.BugStatus.Closed)]
-    [DataRow(Bug.BugStatus.Reopened, Bug.BugAction.Assign, Bug.BugStatus.Assigned)]
-    public void ValidTransitions_ShouldSucceed(Bug.BugStatus from, Bug.BugAction action, Bug.BugStatus to)
+    [DataRow(Ticket.TicketStatus.Allocated, Ticket.TicketAction.Begin, Ticket.TicketStatus.InWork)]
+    [DataRow(Ticket.TicketStatus.Resolved, Ticket.TicketAction.Accept, Ticket.TicketStatus.Reviewed)]
+    [DataRow(Ticket.TicketStatus.Reviewed, Ticket.TicketAction.Complete, Ticket.TicketStatus.Done)]
+    [DataRow(Ticket.TicketStatus.Reopened, Ticket.TicketAction.Allocate, Ticket.TicketStatus.Allocated)]
+    public void ValidTransitions_ShouldSucceed(Ticket.TicketStatus from, Ticket.TicketAction action, Ticket.TicketStatus to)
     {
-        var bug = new Bug(from);
+        var ticket = new Ticket(from);
         switch (action)
         {
-            case Bug.BugAction.Assign: bug.AssignTo("Test"); break;
-            case Bug.BugAction.StartWork: bug.StartWorking(); break;
-            case Bug.BugAction.Fix: bug.MarkAsFixed(); break;
-            case Bug.BugAction.Confirm: bug.ConfirmFix(); break;
-            case Bug.BugAction.Close: bug.CloseBug(); break;
-            case Bug.BugAction.Reopen: bug.ReopenBug(); break;
-            case Bug.BugAction.Reject: bug.RejectBug(); break;
-            case Bug.BugAction.Defer: bug.DeferBug(); break;
-            case Bug.BugAction.Renew: bug.ActivateAgain(); break;
+            case Ticket.TicketAction.Allocate: ticket.AllocateTo("TestUser"); break;
+            case Ticket.TicketAction.Begin: ticket.BeginWork(); break;
+            case Ticket.TicketAction.Resolve: ticket.MarkResolved(); break;
+            case Ticket.TicketAction.Accept: ticket.AcceptResolution(); break;
+            case Ticket.TicketAction.Complete: ticket.CompleteTicket(); break;
+            case Ticket.TicketAction.Reactivate: ticket.ReactivateTicket(); break;
+            case Ticket.TicketAction.Decline: ticket.DeclineTicket(); break;
+            case Ticket.TicketAction.Postpone: ticket.PostponeTicket(); break;
+            case Ticket.TicketAction.Restore: ticket.RestoreTicket(); break;
         }
-        Assert.AreEqual(to, bug.CurrentStatus);
+        Assert.AreEqual(to, ticket.CurrentStatus);
     }
 }

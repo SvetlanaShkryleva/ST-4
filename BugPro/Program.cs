@@ -1,95 +1,95 @@
 using Stateless;
 
-namespace BugPro;
+namespace BugTracking;
 
-public class Bug
+public class Ticket
 {
-    public enum BugStatus
+    public enum TicketStatus
     {
-        New, Assigned, InProgress, Fixed, Verified,
-        Closed, Reopened, Rejected, Deferred
+        Open, Allocated, InWork, Resolved, Reviewed, Done,
+        Reopened, Declined, Suspended
     }
 
-    public enum BugAction
+    public enum TicketAction
     {
-        Assign, StartWork, Fix, Confirm, Close,
-        Reopen, Reject, Defer, Renew
+        Allocate, Begin, Resolve, Accept, Complete,
+        Reactivate, Decline, Postpone, Restore
     }
 
-    private readonly StateMachine<BugStatus, BugAction> _fsm;
-    private readonly StateMachine<BugStatus, BugAction>.TriggerWithParameters<string> _assignTrigger;
+    private readonly StateMachine<TicketStatus, TicketAction> _stateMachine;
+    private readonly StateMachine<TicketStatus, TicketAction>.TriggerWithParameters<string> _allocateTrigger;
 
-    public Bug(BugStatus initialStatus = BugStatus.New)
+    public Ticket(TicketStatus initialStatus = TicketStatus.Open)
     {
-        _fsm = new StateMachine<BugStatus, BugAction>(initialStatus);
-        _assignTrigger = _fsm.SetTriggerParameters<string>(BugAction.Assign);
+        _stateMachine = new StateMachine<TicketStatus, TicketAction>(initialStatus);
+        _allocateTrigger = _stateMachine.SetTriggerParameters<string>(TicketAction.Allocate);
 
-        _fsm.Configure(BugStatus.New)
-            .Permit(BugAction.Assign, BugStatus.Assigned)
-            .Permit(BugAction.Reject, BugStatus.Rejected)
-            .Permit(BugAction.Defer, BugStatus.Deferred);
+        _stateMachine.Configure(TicketStatus.Open)
+            .Permit(TicketAction.Allocate, TicketStatus.Allocated)
+            .Permit(TicketAction.Decline, TicketStatus.Declined)
+            .Permit(TicketAction.Postpone, TicketStatus.Suspended);
 
-        _fsm.Configure(BugStatus.Assigned)
-            .OnEntryFrom(_assignTrigger, assignee => Console.WriteLine($"  Assigned to: {assignee}"))
-            .Permit(BugAction.StartWork, BugStatus.InProgress)
-            .Permit(BugAction.Reject, BugStatus.Rejected)
-            .Permit(BugAction.Defer, BugStatus.Deferred);
+        _stateMachine.Configure(TicketStatus.Allocated)
+            .OnEntryFrom(_allocateTrigger, assignee => Console.WriteLine($"  Allocated to: {assignee}"))
+            .Permit(TicketAction.Begin, TicketStatus.InWork)
+            .Permit(TicketAction.Decline, TicketStatus.Declined)
+            .Permit(TicketAction.Postpone, TicketStatus.Suspended);
 
-        _fsm.Configure(BugStatus.InProgress)
-            .Permit(BugAction.Fix, BugStatus.Fixed)
-            .Permit(BugAction.Defer, BugStatus.Deferred);
+        _stateMachine.Configure(TicketStatus.InWork)
+            .Permit(TicketAction.Resolve, TicketStatus.Resolved)
+            .Permit(TicketAction.Postpone, TicketStatus.Suspended);
 
-        _fsm.Configure(BugStatus.Fixed)
-            .Permit(BugAction.Confirm, BugStatus.Verified)
-            .Permit(BugAction.Reopen, BugStatus.Reopened);
+        _stateMachine.Configure(TicketStatus.Resolved)
+            .Permit(TicketAction.Accept, TicketStatus.Reviewed)
+            .Permit(TicketAction.Reactivate, TicketStatus.Reopened);
 
-        _fsm.Configure(BugStatus.Verified)
-            .Permit(BugAction.Close, BugStatus.Closed)
-            .Permit(BugAction.Reopen, BugStatus.Reopened);
+        _stateMachine.Configure(TicketStatus.Reviewed)
+            .Permit(TicketAction.Complete, TicketStatus.Done)
+            .Permit(TicketAction.Reactivate, TicketStatus.Reopened);
 
-        _fsm.Configure(BugStatus.Closed)
-            .Permit(BugAction.Reopen, BugStatus.Reopened);
+        _stateMachine.Configure(TicketStatus.Done)
+            .Permit(TicketAction.Reactivate, TicketStatus.Reopened);
 
-        _fsm.Configure(BugStatus.Reopened)
-            .Permit(BugAction.Assign, BugStatus.Assigned)
-            .Permit(BugAction.Reject, BugStatus.Rejected);
+        _stateMachine.Configure(TicketStatus.Reopened)
+            .Permit(TicketAction.Allocate, TicketStatus.Allocated)
+            .Permit(TicketAction.Decline, TicketStatus.Declined);
 
-        _fsm.Configure(BugStatus.Rejected)
-            .Permit(BugAction.Renew, BugStatus.New);
+        _stateMachine.Configure(TicketStatus.Declined)
+            .Permit(TicketAction.Restore, TicketStatus.Open);
 
-        _fsm.Configure(BugStatus.Deferred)
-            .Permit(BugAction.Renew, BugStatus.New);
+        _stateMachine.Configure(TicketStatus.Suspended)
+            .Permit(TicketAction.Restore, TicketStatus.Open);
     }
 
-    public BugStatus CurrentStatus => _fsm.State;
+    public TicketStatus CurrentStatus => _stateMachine.State;
 
-    public void AssignTo(string assignee) => _fsm.Fire(_assignTrigger, assignee);
-    public void StartWorking() => _fsm.Fire(BugAction.StartWork);
-    public void MarkAsFixed() => _fsm.Fire(BugAction.Fix);
-    public void ConfirmFix() => _fsm.Fire(BugAction.Confirm);
-    public void CloseBug() => _fsm.Fire(BugAction.Close);
-    public void ReopenBug() => _fsm.Fire(BugAction.Reopen);
-    public void RejectBug() => _fsm.Fire(BugAction.Reject);
-    public void DeferBug() => _fsm.Fire(BugAction.Defer);
-    public void ActivateAgain() => _fsm.Fire(BugAction.Renew);
+    public void AllocateTo(string assignee) => _stateMachine.Fire(_allocateTrigger, assignee);
+    public void BeginWork() => _stateMachine.Fire(TicketAction.Begin);
+    public void MarkResolved() => _stateMachine.Fire(TicketAction.Resolve);
+    public void AcceptResolution() => _stateMachine.Fire(TicketAction.Accept);
+    public void CompleteTicket() => _stateMachine.Fire(TicketAction.Complete);
+    public void ReactivateTicket() => _stateMachine.Fire(TicketAction.Reactivate);
+    public void DeclineTicket() => _stateMachine.Fire(TicketAction.Decline);
+    public void PostponeTicket() => _stateMachine.Fire(TicketAction.Postpone);
+    public void RestoreTicket() => _stateMachine.Fire(TicketAction.Restore);
 }
 
 public static class Program
 {
     public static void Main()
     {
-        Console.WriteLine("Bug workflow demo");
-        var bug = new Bug();
-        Console.WriteLine($"Initial state: {bug.CurrentStatus}");
-        bug.AssignTo("Yushkova Polina");
-        Console.WriteLine($"After assign: {bug.CurrentStatus}");
-        bug.StartWorking();
-        Console.WriteLine($"After start progress: {bug.CurrentStatus}");
-        bug.MarkAsFixed();
-        Console.WriteLine($"After fix: {bug.CurrentStatus}");
-        bug.ConfirmFix();
-        Console.WriteLine($"After verify: {bug.CurrentStatus}");
-        bug.CloseBug();
-        Console.WriteLine($"After close: {bug.CurrentStatus}");
+        Console.WriteLine("Ticket state machine demo");
+        var ticket = new Ticket();
+        Console.WriteLine($"Initial state: {ticket.CurrentStatus}");
+        ticket.AllocateTo("Anna Smith");
+        Console.WriteLine($"After allocate: {ticket.CurrentStatus}");
+        ticket.BeginWork();
+        Console.WriteLine($"After start work: {ticket.CurrentStatus}");
+        ticket.MarkResolved();
+        Console.WriteLine($"After resolve: {ticket.CurrentStatus}");
+        ticket.AcceptResolution();
+        Console.WriteLine($"After accept: {ticket.CurrentStatus}");
+        ticket.CompleteTicket();
+        Console.WriteLine($"After complete: {ticket.CurrentStatus}");
     }
 }
